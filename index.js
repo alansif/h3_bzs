@@ -5,7 +5,7 @@ const bodyParser = require("body-parser");
 const app = express();
 const port = 8115;
 
-app.use(express.static(path.resolve('../h3_bzn/dist')));
+app.use(express.static(path.resolve('../h3_bzc/dist')));
 
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
