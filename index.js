@@ -66,7 +66,7 @@ app.get('/api/logs', function(req, res){
 app.get('/api/data', function(req, res){
     let f = async function() {
         try{
-            const rows = await query("select * from orders");
+            const rows = await query("select * from orders where 作废=0");
             res.status(200).json(rows);
         } catch(err) {
             res.status(500).end();
@@ -117,6 +117,21 @@ function doInsert(id, data, user, res) {
     f();
 }
 
+function doDelete(id, data, user, res) {
+    let sqlstr1 = "insert into logs(tablename,action,rowid,operator) values";
+    let f = async function() {
+        try {
+            let rows0 = await query('update orders set 作废=1 where id=?', id);
+            await query(sqlstr1 + `('orders','delete',${id},'${user}')`)
+            res.status(200).json(rows0);
+        } catch(error) {
+            console.error(error);
+            res.status(500).end();
+        }
+    }
+    f();
+}
+
 app.post('/api/data', function(req, res){
     let body = req.body;
     delete body.data.head;
@@ -127,6 +142,8 @@ app.post('/api/data', function(req, res){
         doUpdate(body.id, body.data, user, res);
     } else if (body.action === "inserted") {
         doInsert(body.id, body.data, user, res);
+    } else if (body.action === "deleted") {
+        doDelete(body.id, body.data, user, res);
     }
 });
 
