@@ -50,6 +50,26 @@ app.post('/api/login', function(req, res){
     f();
 });
 
+app.post('/api/passwd', function(req, res){
+    const username = req.body['username'] || '';
+    const oldpass = req.body['oldpass'] || '';
+    const newpass = req.body['newpass'] || '';
+    let f = async function() {
+        try{
+            const rows = await query("update account set password = md5(?) where username = ? and password = md5(?)", [newpass, username, oldpass]);
+            if (rows.affectedRows === 0) {
+                res.status(401).end();
+            } else {
+                res.status(200).json(rows);
+            }
+        } catch(err) {
+            res.status(500).end();
+            console.error(err);
+        }
+    };
+    f();
+});
+
 app.get('/api/logs', function(req, res){
     let f = async function() {
         try{
