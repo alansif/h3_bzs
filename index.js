@@ -102,7 +102,8 @@ function doUpdate(id, data, user, res) {
     let sqlstr1 = "insert into logs(tablename,action,rowid,fieldname,valuefrom,valueto,operator,transaction) values";
     let keys = Object.keys(data).map(k => k + ' = ?').join();
     let values = Object.values(data);
-    let sqlstr = "update orders set " + keys + " where id = " + id;
+    const utstr = `, 最后修改时间 = CURRENT_TIMESTAMP, 最后修改者 = '${user}'`;
+    let sqlstr = "update orders set " + keys + utstr + " where id = " + id;
     let f = async function() {
         try {
             let rows_uuid = await query('select uuid() as uid');
@@ -122,6 +123,7 @@ function doUpdate(id, data, user, res) {
 
 function doInsert(data, user, res) {
     const jsondata = JSON.stringify(data);
+    data['创建者'] = user;
     let sqlstr1 = "insert into logs(tablename,action,rowid,operator,transaction,jsondata) values";
     let f = async function() {
         try {
@@ -141,6 +143,7 @@ function doInsert(data, user, res) {
 
 function doImportOne(data, user, tid) {
     const jsondata = JSON.stringify(data);
+    data['创建者'] = user;
     const sqlstr1 = "insert into logs(tablename,action,rowid,operator,transaction,jsondata) values";
     let f = async function() {
         let rows0 = await query('insert into orders set ?', data);
