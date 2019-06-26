@@ -120,14 +120,16 @@ function doUpdate(id, data, user, res) {
     f();
 }
 
-function doInsert(id, data, user, res) {
+function doInsert(data, user, res) {
     const jsondata = JSON.stringify(data);
-    let sqlstr1 = "insert into logs(tablename,action,rowid,operator,jsondata) values";
+    let sqlstr1 = "insert into logs(tablename,action,rowid,operator,transaction,jsondata) values";
     let f = async function() {
         try {
+            let rows_uuid = await query('select uuid() as uid');
+            const uid = rows_uuid[0].uid;
             let rows0 = await query('insert into orders set ?', data);
             rows0.tid = rows0.insertId;
-            await query(sqlstr1 + `('orders','insert',${rows0.insertId},'${user}','${jsondata}')`)
+            await query(sqlstr1 + `('orders','insert',${rows0.insertId},'${user}','${uid}','${jsondata}')`)
             res.status(200).json(rows0);
         } catch(error) {
             console.error(error);
@@ -136,6 +138,60 @@ function doInsert(id, data, user, res) {
     }
     f();
 }
+
+function doImportOne(data, user, tid) {
+    const jsondata = JSON.stringify(data);
+    const sqlstr1 = "insert into logs(tablename,action,rowid,operator,transaction,jsondata) values";
+    let f = async function() {
+        let rows0 = await query('insert into orders set ?', data);
+        await query(sqlstr1 + `('orders','import',${rows0.insertId},'${user}','${tid}','${jsondata}')`)
+    }
+    return f();
+}
+
+app.post('/api/bulkcheck', function(req, res){
+    if (!Array.isArray(req.body)) {
+        res.status(400).end();
+        return;
+    }
+    let f = async function() {
+        try {
+            let r = [];
+            for (const v of req.body) {
+                const v1 = v['证件号'];
+                const v2 = v['项目'];
+                const rows = await query("select * from orders where 作废=0 and 证件号=? and 项目=? and datediff(SYSDATE(), 创建时间) < 180", [v1, v2]);
+                if (rows.length > 0) {
+                    r.push(v.id);
+                }
+            }
+            res.status(200).json({ids:r});
+        } catch(error) {
+            console.error(error);
+            res.status(500).json(error);
+        }
+    };
+    f();
+});
+
+app.post('/api/bulksave', function(req, res){
+    let f = async function() {
+        try {
+            let rows_uuid = await query('select uuid() as uid');
+            const tid = rows_uuid[0].uid;
+            for (let v of req.body.data) {
+                delete v.id;
+                console.log(v);
+                await doImportOne(v, req.body.user, tid)
+            }
+            res.status(200).end();
+        } catch(error) {
+            console.error(error);
+            res.status(500).json(error);
+        }
+    };
+    f();
+});
 
 function doDelete(id, data, user, res) {
     let sqlstr1 = "insert into logs(tablename,action,rowid,operator) values";
@@ -161,7 +217,7 @@ app.post('/api/data', function(req, res){
     if (body.action === "updated") {
         doUpdate(body.id, body.data, user, res);
     } else if (body.action === "inserted") {
-        doInsert(body.id, body.data, user, res);
+        doInsert(body.data, user, res);
     } else if (body.action === "deleted") {
         doDelete(body.id, body.data, user, res);
     }
